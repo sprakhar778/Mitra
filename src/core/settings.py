@@ -10,7 +10,7 @@ class Settings(BaseSettings):
 
     GROQ_IMAGE_MODEL_NAME: str = "meta-llama/llama-4-scout-17b-16e-instruct"
     
-
+   
 
     GOOGLE_API_KEY: str| None = None
     IMAGE_GENERATION_MODEL_NAME: str| None = "gemini-2.5-flash-image"
@@ -21,9 +21,13 @@ class Settings(BaseSettings):
     SPEECH_TO_TEXT_MODEL_NAME: str| None = "whisper-large-v3-turbo"
 
 
+    QDRANT_API_KEY: str | None = None
+    QDRANT_URL: str| None = "https://cd59c1e1-dfde-4db3-a4db-c4ef7d3275d8.eu-west-2-0.aws.cloud.qdrant.io"
+    QDRANT_PORT: str = "6333"
+    QDRANT_HOST: str | None = None
+
+
         
-
-
 
 
 
