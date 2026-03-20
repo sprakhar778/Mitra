@@ -11,8 +11,6 @@ load_dotenv()
 
 
 
-
-
 class ImageToText:
     def __init__(self):
         
