@@ -36,7 +36,7 @@ class VectorStore:
         self.client = self._get_qdrant_client()
 
         self.model = OpenAIEmbeddings(model="text-embedding-3-large",api_key=settings.OPENAI_API_KEY)  # Use the same model for embeddings
-        self.SIMILARITY_THRESHOLD = 0.8 
+        self.SIMILARITY_THRESHOLD = 0.9
         self.COLLECTION_NAME = collection_name
 
     @lru_cache(maxsize=1)
@@ -140,3 +140,7 @@ class VectorStore:
 
 #python -m src.modules.memory.vector_store
 
+@lru_cache(maxsize=1)
+def get_vector_store() -> VectorStore:
+    """Get a singleton instance of the VectorStore."""
+    return VectorStore()
