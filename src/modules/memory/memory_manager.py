@@ -40,7 +40,7 @@ class MemoryManager:
         if analysis.is_important and analysis.formatted_memory:
             # Check if similar memory exists
             similar = self.vector_store.find_similar_memory(analysis.formatted_memory)
-            if similar and similar.score > 0.8:  # Threshold for similarity
+            if similar and similar.score > 0.7:  # Threshold for similarity
                 print("Similar memory already exists, skipping storage.")
                 return
             # Store the new memory
@@ -56,10 +56,10 @@ class MemoryManager:
         if memories:
             print(f"Retrieved {len(memories)} relevant memories.")
         
-        for memory in memories:
-            print(f"Memory: {memory.text}, Score: {memory.score}")
+        # for memory in memories:
+        #     print(f"Memory: {memory.text}, Score: {memory.score}")
         
-        return [memory.text for memory in memories]
+        return [memory.text for memory in memories if memory.score > 0.2]  # Filter by relevance score
 
     def format_memories_for_prompt(self, memories: List[str]) -> str:
         """Format retrieved memories as bullet points."""
@@ -81,8 +81,9 @@ def get_memory_manager() -> MemoryManager:
 #     # Example usage
 #     from langchain_core.messages import HumanMessage
 
-#     test_message = HumanMessage(content="My name is Prakhar Srivastava")
-#     memory_manager.extract_and_store_memory(test_message)
+#     # test_message = HumanMessage(content="I am a software developer who loves coding and learning new technologies.I work in meril life science and works as AI engineer.")
+#     text_message = HumanMessage(content="I an aI engineer")
+#     memory_manager.extract_and_store_memory(text_message)
 
 #     context = "who am i?"
 #     relevant_memories = memory_manager.get_relevant_memories(context)

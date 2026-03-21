@@ -36,7 +36,7 @@ class VectorStore:
         self.client = self._get_qdrant_client()
 
         self.model = OpenAIEmbeddings(model="text-embedding-3-large",api_key=settings.OPENAI_API_KEY)  # Use the same model for embeddings
-        self.SIMILARITY_THRESHOLD = 0.9
+        self.SIMILARITY_THRESHOLD = 0.7
         self.COLLECTION_NAME = collection_name
 
     @lru_cache(maxsize=1)
@@ -74,6 +74,7 @@ class VectorStore:
             Optional Memory if a similar one is found
         """
         results = self.search_memories(text, k=1)
+        print(f"Similarity search results: {results[0].score if results else 'No results'}")
         if results and results[0].score >= self.SIMILARITY_THRESHOLD:
             return results[0]
         return None
