@@ -26,6 +26,13 @@ class Settings(BaseSettings):
     QDRANT_PORT: str = "6333"
     QDRANT_HOST: str | None = None
 
+    MEMORY_TOP_K: int = 3
+    ROUTER_MESSAGES_TO_ANALYZE: int = 3
+    TOTAL_MESSAGES_SUMMARY_TRIGGER: int = 15
+    TOTAL_MESSAGES_AFTER_SUMMARY: int = 5
+
+    SHORT_TERM_MEMORY_DB_PATH: str = "/app/data/memory.db"
+
 
         
 

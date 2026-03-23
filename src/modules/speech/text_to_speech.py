@@ -21,6 +21,10 @@ class TextToSpeech:
 
             if not audio_bytes:
                 raise TextToSpeechError("Generated audio is empty")
+            
+            with open("output_audio.wav", "wb") as f:
+                f.write(audio_bytes)
+                print("Audio synthesized and saved to output_audio.wav")
 
             return audio_bytes
 
@@ -29,7 +33,8 @@ class TextToSpeech:
         
 
 
-
+def get_text_to_speech_module():
+    return TextToSpeech()
 
 
 # if __name__ == "__main__":

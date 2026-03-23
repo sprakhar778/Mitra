@@ -13,7 +13,7 @@ class MemoryManager:
         self.vector_store = get_vector_store()
 
     
-    def _analyze_memory(self, text: str) -> dict:
+    async def _analyze_memory(self, text: str) -> dict:
         """Analyzes the text to determine if it contains memory-worthy content.
 
         Args:
@@ -22,13 +22,13 @@ class MemoryManager:
         prompt = MEMORY_ANALYSIS_PROMPT.format(message=text)
         llm = get_llm_provider()
         llm=llm.with_structured_output(MemoryAnalysis)
-        response = llm.invoke(prompt)
+        response = await llm.ainvoke(prompt)
         return response
      
             
 
 
-    def extract_and_store_memory(self, message: BaseMessage):
+    async def extract_and_store_memory(self, message: BaseMessage):
         """
         Extracts memory from a message and stores it in the vector store.
         """
@@ -36,7 +36,7 @@ class MemoryManager:
             return  # Only analyze human messages
         
 
-        analysis = self._analyze_memory(message.content)
+        analysis = await self._analyze_memory(message.content)
         if analysis.is_important and analysis.formatted_memory:
             # Check if similar memory exists
             similar = self.vector_store.find_similar_memory(analysis.formatted_memory)
@@ -58,14 +58,15 @@ class MemoryManager:
         
         # for memory in memories:
         #     print(f"Memory: {memory.text}, Score: {memory.score}")
-        
-        return [memory.text for memory in memories if memory.score > 0.2]  # Filter by relevance score
+        print(memories)
+        return [memory.text for memory in memories]  # Filter by relevance score
 
     def format_memories_for_prompt(self, memories: List[str]) -> str:
         """Format retrieved memories as bullet points."""
         
         if not memories:
             return ""
+        print(memories)
         return "\n".join(f"- {memory}" for memory in memories)
     
 

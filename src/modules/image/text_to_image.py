@@ -29,6 +29,9 @@ class TextToImage:
         except Exception as e:
             raise TextToImageError(f"Failed to generate image: {str(e)}") from e
     
+def get_text_to_image_module():
+    return TextToImage()
+
 
 # if __name__ == "__main__":
 #     import asyncio

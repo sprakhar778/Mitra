@@ -54,6 +54,8 @@ class ImageToText:
             raise ImageToTextError(f"Failed to analyze image: {str(e)}") from e
 
     
+def get_image_to_text_module():
+    return ImageToText()
 
 # async def main():
 #     print("Starting...")

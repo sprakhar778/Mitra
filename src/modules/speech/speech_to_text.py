@@ -43,7 +43,8 @@ class SpeechToText:
             if temp_path and os.path.exists(temp_path):
                 os.remove(temp_path)
 
-
+def get_speech_to_text_module():
+    return SpeechToText()
 
 # if __name__ == "__main__":
 #     import asyncio
