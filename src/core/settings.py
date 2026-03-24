@@ -1,4 +1,16 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
+import os
+
+
+
+# ✅ Resolve path safely (independent of cwd)
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))  # src/core
+PROJECT_ROOT = os.path.abspath(os.path.join(BASE_DIR, "../../"))
+
+DB_PATH = os.path.join(PROJECT_ROOT, "src/data/memory.db")
+
+# ✅ Ensure directory exists (important)
+os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
 
 
 class Settings(BaseSettings):
@@ -31,8 +43,7 @@ class Settings(BaseSettings):
     TOTAL_MESSAGES_SUMMARY_TRIGGER: int = 15
     TOTAL_MESSAGES_AFTER_SUMMARY: int = 5
 
-    SHORT_TERM_MEMORY_DB_PATH: str = "/app/data/memory.db"
-
+    SHORT_TERM_MEMORY_DB_PATH: str = DB_PATH
 
         
 

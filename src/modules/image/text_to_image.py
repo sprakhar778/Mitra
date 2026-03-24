@@ -11,7 +11,7 @@ class TextToImage:
     def __init__(self):
         self.client = genai.Client(api_key=settings.GOOGLE_API_KEY)
 
-    async def generate_image(self, prompt: str, output_path: str) -> Image.Image:
+    async def generate_image(self, prompt: str, output_path: str) -> str:
         try:
             response = self.client.models.generate_content(
             model=settings.IMAGE_GENERATION_MODEL_NAME,
@@ -22,7 +22,7 @@ class TextToImage:
                 if part.inline_data is not None:
                     image = part.as_image()
                     image.save(output_path)
-                    return image
+                    return output_path
 
             raise TextToImageError("No image data found in the response.")
         
