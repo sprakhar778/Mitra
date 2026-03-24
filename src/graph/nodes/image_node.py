@@ -1,6 +1,6 @@
 from src.modules.image.text_to_image import get_text_to_image_module
 from src.graph.state import AgentState
-
+from langchain_core.messages import AIMessage
 from langchain_core.runnables import RunnableConfig
 from src.chains.enhanced_prompt_chain import enhanced_prompt_chain
 import uuid
@@ -26,6 +26,6 @@ async def image_node(state: AgentState, config: RunnableConfig):
     img_path = f"generated_images/image_{str(uuid.uuid4())}.png"
     try:
         image_path = await text_to_image_module.generate_image(enhanced_prompt,output_path=img_path)
-        return {"image_path": image_path}
+        return {"image_path": image_path,"messages": AIMessage(content=f"Image generated based on the prompt: {enhanced_prompt}")}
     except Exception as e:
         return {"error": f"Failed to generate image: {str(e)}"}

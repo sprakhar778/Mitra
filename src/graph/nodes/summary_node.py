@@ -1,7 +1,7 @@
 from src.graph.state import AgentState
 from langchain_core.messages import HumanMessage, RemoveMessage
 from src.llm.llm_provider import get_llm_provider
-from src.core import settings
+from src.core.settings import settings
 
 
 

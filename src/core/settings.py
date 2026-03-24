@@ -45,7 +45,7 @@ class Settings(BaseSettings):
 
     SHORT_TERM_MEMORY_DB_PATH: str = DB_PATH
 
-        
+      
 
 
 

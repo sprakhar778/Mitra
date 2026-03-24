@@ -39,6 +39,53 @@ async def on_message(message:cl.Message):
     
     if message.elements:
          for element in message.elements:
+            if isinstance(element, cl.Audio):
+                with open(element.path, "rb") as f:
+                    audio_data = f.read()
+
+                # mime_type = element.mime
+
+                # print("📁 AUDIO FILE RECEIVED:", element.path)
+                # print("MIME:", mime_type)
+                # print("SIZE:", len(audio_data))
+                # input_audio_el = cl.Audio(mime=mime_type, content=audio_data)
+                # #audio message
+                # await cl.Message(author="You", content="", elements=[input_audio_el]).send()
+
+                transcription = await speech_to_text_module.transcribe(audio_data)
+
+                
+                # show transcription
+                await cl.Message(content=f"📝 Transcription: {transcription}").send()
+
+                content+=f"\n\n{transcription}"
+                thread_id = cl.user_session.get("thread_id")
+                async with cl.Step(type="run"):
+                    async with AsyncSqliteSaver.from_conn_string(settings.SHORT_TERM_MEMORY_DB_PATH) as short_term_memory:
+                        graph = create_workflow_graph().compile(checkpointer=short_term_memory)
+                        output_state = await graph.ainvoke(
+                            {"messages": [HumanMessage(content=content)]},
+                            {"configurable": {"thread_id": thread_id}},
+                        )
+
+                # Use global TextToSpeech instance
+                audio_buffer = await text_to_speech_module.synthesize(output_state["messages"][-1].content)
+
+                output_audio_el = cl.Audio(
+                    name="Audio",
+                    auto_play=True,
+                    mime="audio/mpeg3",
+                    content=audio_buffer,
+                )
+                await cl.Message(content=output_state["messages"][-1].content, elements=[output_audio_el]).send()
+                return
+
+
+
+               
+
+
+               
             #handle image
             if isinstance(element, cl.Image):
                 with open(element.path, "rb") as f:
@@ -67,7 +114,12 @@ async def on_message(message:cl.Message):
             output_state = await graph.aget_state(config={"configurable": {"thread_id": thread_id}})
     
     if output_state.values.get("workflow")=="audio":
+        #but i want last human message as response not the audio response message
         response = output_state.values.get("messages")[-1].content
+        
+        # to remove the prefix "Audio response generated based on the prompt: " from the response
+        response = response.split(":", 1)[-1].strip()
+
         audio_bytes = output_state.values.get("audio_buffer")
 
         output_audio_el = cl.Audio(
@@ -79,60 +131,11 @@ async def on_message(message:cl.Message):
         await cl.Message(content=response, elements=[output_audio_el]).send()
 
     elif output_state.values.get("workflow") == "image":
-        response = output_state.values["messages"][-1].content
+        # response = output_state.values["messages"][-1].content
+        response =""
         image = cl.Image(path=output_state.values["image_path"], display="inline")
         await cl.Message(content=response, elements=[image]).send()
     else:
         await msg.send()
 
 
-
-
-@cl.on_audio_chunk
-async def on_audio_chunk(chunk):
-    """Handle incoming audio chunks"""
-    if chunk.isStart:
-        buffer = BytesIO()
-        buffer.name = f"input_audio.{chunk.mimeType.split('/')[1]}"
-        cl.user_session.set("audio_buffer", buffer)
-        cl.user_session.set("audio_mime_type", chunk.mimeType)
-    cl.user_session.get("audio_buffer").write(chunk.data)
-
-
-@cl.on_audio_end
-async def on_audio_end(elements):
-    """Process completed audio input"""
-    # Get audio data
-    audio_buffer = cl.user_session.get("audio_buffer")
-    audio_buffer.seek(0)
-    audio_data = audio_buffer.read()
-
-    # Show user's audio message
-    input_audio_el = cl.Audio(mime="audio/mpeg3", content=audio_data)
-    await cl.Message(author="You", content="", elements=[input_audio_el, *elements]).send()
-
-    # Use global SpeechToText instance
-    transcription = await speech_to_text_module.transcribe(audio_data)
-
-    thread_id = cl.user_session.get("thread_id")
-
-    async with AsyncSqliteSaver.from_conn_string(settings.SHORT_TERM_MEMORY_DB_PATH) as short_term_memory:
-        graph = create_workflow_graph().compile(checkpointer=short_term_memory)
-        output_state = await graph.ainvoke(
-            {"messages": [HumanMessage(content=transcription)]},
-            {"configurable": {"thread_id": thread_id}},
-        )
-
-    # Use global TextToSpeech instance
-    audio_buffer = await text_to_speech_module.synthesize(output_state["messages"][-1].content)
-
-    output_audio_el = cl.Audio(
-        name="Audio",
-        auto_play=True,
-        mime="audio/mpeg3",
-        content=audio_buffer,
-    )
-    await cl.Message(content=output_state["messages"][-1].content, elements=[output_audio_el]).send()
-
-
-#python -m chainlit run src/interface/chainlit/app.py --watch
