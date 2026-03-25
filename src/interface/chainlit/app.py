@@ -22,6 +22,9 @@ image_to_text_module = get_image_to_text_module()
 speech_to_text_module = get_speech_to_text_module()
 text_to_speech_module = get_text_to_speech_module()
 
+from fastapi.staticfiles import StaticFiles
+
+
 @cl.on_chat_start
 async def on_chat_start():
      cl.user_session.set("thread_id", 1)
