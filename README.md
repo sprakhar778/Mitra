@@ -1,4 +1,4 @@
-# Mitra: AI Companion Graph Tester
+# Mitra: Your AI Companion
 
 Mitra is an advanced, multi-modal AI Companion application built with Streamlit and LangGraph. It simulates a Turing Test-like environment where users interact with "Ava", a persona-driven AI acting as a Machine Learning Engineer. The application features advanced workflow routing, voice and image processing, and persistent long-term memory.
 
