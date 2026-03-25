@@ -23,6 +23,6 @@ async def summarize_conversation_node(state: AgentState):
 
     messages = state["messages"] + [HumanMessage(content=summary_message)]
     response = await model.ainvoke(messages)
-
+    #RemoveMessage is a special message type that tells the system to delete the message with the given id from the conversation history. We want to delete all messages except the most recent ones that we want to keep for context.
     delete_messages = [RemoveMessage(id=m.id) for m in state["messages"][: -settings.TOTAL_MESSAGES_AFTER_SUMMARY]]
     return {"summary": response.content, "messages": delete_messages}

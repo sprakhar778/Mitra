@@ -25,4 +25,4 @@ async def audio_node(state: AgentState, config: RunnableConfig):
     audio_buffer = await text_to_speech_module.synthesize(response)
    
     
-    return {"response": response, "audio_buffer": audio_buffer,"messages": AIMessage(content=f"Audio response generated based on the prompt: {response}")}
+    return {"response": response, "audio_buffer": audio_buffer,"messages": AIMessage(content=f"{response}")}

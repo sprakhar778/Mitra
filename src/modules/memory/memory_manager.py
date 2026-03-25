@@ -11,6 +11,7 @@ from typing import List
 class MemoryManager:
     def __init__(self):
         self.vector_store = get_vector_store()
+        self.SIMILARITY_THRESHOLD = 0.2
 
     
     async def _analyze_memory(self, text: str) -> dict:
@@ -39,10 +40,10 @@ class MemoryManager:
         analysis = await self._analyze_memory(message.content)
         if analysis.is_important and analysis.formatted_memory:
             # Check if similar memory exists
-            similar = self.vector_store.find_similar_memory(analysis.formatted_memory)
-            if similar and similar.score > 0.7:  # Threshold for similarity
-                print("Similar memory already exists, skipping storage.")
-                return
+            # similar = self.vector_store.find_similar_memory(analysis.formatted_memory)
+            # if similar and similar.score > 0.7:  # Threshold for similarity
+            #     print("Similar memory already exists, skipping storage.")
+            #     return
             # Store the new memory
             self.vector_store.store_memory(analysis.formatted_memory, {"timestamp": datetime.now().isoformat(), "type": "extracted_memory"})
 
@@ -59,7 +60,7 @@ class MemoryManager:
         # for memory in memories:
         #     print(f"Memory: {memory.text}, Score: {memory.score}")
         print(memories)
-        return [memory.text for memory in memories]  # Filter by relevance score
+        return [memory.text for memory in memories if memory.score and memory.score >= self.vector_store.SIMILARITY_THRESHOLD]  # Filter by relevance score
 
     def format_memories_for_prompt(self, memories: List[str]) -> str:
         """Format retrieved memories as bullet points."""

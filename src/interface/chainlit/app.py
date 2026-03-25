@@ -114,9 +114,9 @@ async def on_message(message:cl.Message):
             output_state = await graph.aget_state(config={"configurable": {"thread_id": thread_id}})
     
     if output_state.values.get("workflow")=="audio":
-        #but i want last human message as response not the audio response message
+        #for last human message as response 
         response = output_state.values.get("messages")[-1].content
-        
+
         # to remove the prefix "Audio response generated based on the prompt: " from the response
         response = response.split(":", 1)[-1].strip()
 
@@ -139,3 +139,4 @@ async def on_message(message:cl.Message):
         await msg.send()
 
 
+#python -m chainlit run src/interface/chainlit/app.py --watch

@@ -32,11 +32,11 @@ class Memory:
 
 class VectorStore:
     def __init__(self, collection_name: str="The-Memories"):
-        self.collection_name = collection_name
+        # self.collection_name = collection_name
         self.client = self._get_qdrant_client()
 
         self.model = OpenAIEmbeddings(model="text-embedding-3-large",api_key=settings.OPENAI_API_KEY)  # Use the same model for embeddings
-        self.SIMILARITY_THRESHOLD = 0.7
+        self.SIMILARITY_THRESHOLD = 0.8
         self.COLLECTION_NAME = collection_name
 
     @lru_cache(maxsize=1)
