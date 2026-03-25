@@ -1,0 +1,59 @@
+# Mitra: AI Companion Graph Tester
+
+Mitra is an advanced, multi-modal AI Companion application built with Streamlit and LangGraph. It simulates a Turing Test-like environment where users interact with "Ava", a persona-driven AI acting as a Machine Learning Engineer. The application features advanced workflow routing, voice and image processing, and persistent long-term memory.
+
+## Features
+
+- **Multi-Modal Interaction**: Chat via text, upload images (processed by an image-to-text module), or upload audio files (transcribed using Deepgram).
+- **Persistent Memory**: Automatically extracts, stores, and injects user facts into the conversation context using Qdrant vector database.
+- **Workflow State Management**: Powered by LangGraph for robust, scalable state management, including memory extraction, conditional routing, and conversation summarization.
+- **Persona Roleplay**: Engages users naturally as Ava, maintaining character consistency throughout interactions without revealing her AI nature.
+- **Dynamic Summarization**: Automatically summarizes conversations to maintain context without bursting token limits.
+
+## Project Architecture
+
+Mitra uses a node-based architecture orchestrated by LangGraph (`src/graph`):
+- `memory_extraction_node`: Identifies and records important facts about the user.
+- `router_node`: Decides the appropriate sub-workflow based on user input (text, image, audio).
+- `memory_injection_node`: Retrieves user facts to provide personalized responses.
+- `conversation_node`, `image_node`, `audio_node`: Specialized nodes for handling different modalities.
+- `summarize_conversation_node`: Compresses chat history as the conversation grows.
+
+## Prerequisites
+
+- Python >= 3.12
+- API keys for LLM providers (OpenAI, Groq, Google GenAI, etc.)
+- Deepgram API key (for audio transcription)
+- Setup a `.env` file containing the necessary environment variables (refer to `.env.example`).
+
+## Installation
+
+1. Clone the repository and navigate to the project root:
+   ```bash
+   cd mitra
+   ```
+
+2. (Optional but recommended) Create and activate a virtual environment:
+   ```bash
+   python -m venv .venv
+   source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+   ```
+
+3. Install dependencies:
+   You can use `uv` or `pip` to install the requirements from `pyproject.toml`:
+   ```bash
+   pip install -e .
+   ```
+
+## Usage
+
+Start the Streamlit interface:
+```bash
+streamlit run src/interface/app.py
+```
+
+Upload images or audio via the sidebar, or simply type messages into the chat interface to begin interacting with the AI Companion.
+
+## License
+
+This project is open-source. Please check the repository for further details.
