@@ -13,3 +13,5 @@ wheels/
 src/data/
 
 generated_images/
+
+generated_images/*
