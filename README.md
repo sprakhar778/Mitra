@@ -47,9 +47,9 @@ Mitra uses a node-based architecture orchestrated by LangGraph (`src/graph`):
 
 ## Usage
 
-Start the Streamlit interface:
+Start the Chainlit interface:
 ```bash
-streamlit run src/interface/app.py
+python -m chainlit run src/interface/chainlit/app.py --watch
 ```
 
 Upload images or audio via the sidebar, or simply type messages into the chat interface to begin interacting with the AI Companion.
