@@ -1,13 +1,13 @@
 # Mitra: Your AI Companion
 
-Mitra is an advanced, multi-modal AI Companion application built with Streamlit and LangGraph. It simulates a Turing Test-like environment where users interact with "Ava", a persona-driven AI acting as a Machine Learning Engineer. The application features advanced workflow routing, voice and image processing, and persistent long-term memory.
+Mitra is an advanced, multi-modal AI Companion application built with Streamlit and LangGraph. It simulates a Turing Test-like environment where users interact with "Mitra", a persona-driven AI acting as a Machine Learning Engineer. The application features advanced workflow routing, voice and image processing, and persistent long-term memory.
 
 ## Features
 
 - **Multi-Modal Interaction**: Chat via text, upload images (processed by an image-to-text module), or upload audio files (transcribed using Deepgram).
 - **Persistent Memory**: Automatically extracts, stores, and injects user facts into the conversation context using Qdrant vector database.
 - **Workflow State Management**: Powered by LangGraph for robust, scalable state management, including memory extraction, conditional routing, and conversation summarization.
-- **Persona Roleplay**: Engages users naturally as Ava, maintaining character consistency throughout interactions without revealing her AI nature.
+- **Persona Roleplay**: Engages users naturally as Mitra, maintaining character consistency throughout interactions without revealing her AI nature.
 - **Dynamic Summarization**: Automatically summarizes conversations to maintain context without bursting token limits.
 
 ## Project Architecture
