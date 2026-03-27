@@ -54,6 +54,12 @@ async def whatsapp_handler(request: Request) -> Response:
             elif message["type"] == "image":
                 # Get image caption if any
                 content = message.get("image", {}).get("caption", "")
+                if content:
+                    content+=f"\n\n User Request or Caption for image: {content}"
+                
+                
+                content+=f"\n\nImage Description by AI for your understanding: {description} \n\n Now anlyze and answer user's query based on this image description and user caption if any."
+
                 # Download and analyze image
                 image_bytes = await download_media(message["image"]["id"])
                 try:
@@ -107,6 +113,8 @@ async def whatsapp_handler(request: Request) -> Response:
         logger.error(f"Error processing message: {e}", exc_info=True)
         return Response(content="Internal server error", status_code=500)
 
+
+#---------------------------------------- Helper functions -------------------- --------------------
 
 async def download_media(media_id: str) -> bytes:
     """Download media from WhatsApp."""
