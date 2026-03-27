@@ -6,177 +6,216 @@ from typing import Dict
 import httpx
 from fastapi import APIRouter, Request, Response
 from langchain_core.messages import HumanMessage
-from langchain_openai import ChatOpenAI
+from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 
+from src.graph.graph import create_workflow_graph
 from src.modules.image.image_to_text import ImageToText
 from src.modules.speech.speech_to_text import SpeechToText
+from src.modules.speech.text_to_speech import TextToSpeech
+from src.core.settings import settings
 
 logger = logging.getLogger(__name__)
 
-# ---------------------------------------------------------------------------
-# Module-level singletons (initialised once at startup)
-# ---------------------------------------------------------------------------
+# Global module instances
 speech_to_text = SpeechToText()
+text_to_speech = TextToSpeech()
 image_to_text = ImageToText()
 
-# LLM — single shared instance, stateless call per request
-llm = ChatOpenAI(model="gpt-4o", temperature=0.7, max_tokens=1000)
-
-# ---------------------------------------------------------------------------
-# WhatsApp credentials (set these in your .env)
-# ---------------------------------------------------------------------------
-WHATSAPP_TOKEN = os.getenv("WHATSAPP_TOKEN")
-WHATSAPP_PHONE_NUMBER_ID = os.getenv("WHATSAPP_PHONE_NUMBER_ID")
-WHATSAPP_VERIFY_TOKEN = os.getenv("WHATSAPP_VERIFY_TOKEN")
-
-GRAPH_API_BASE = "https://graph.facebook.com/v21.0"
-
+# Router for WhatsApp respo
 whatsapp_router = APIRouter()
 
+# WhatsApp API credentials
+WHATSAPP_TOKEN = os.getenv("WHATSAPP_TOKEN")
+WHATSAPP_PHONE_NUMBER_ID = os.getenv("WHATSAPP_PHONE_NUMBER_ID")
 
-# ---------------------------------------------------------------------------
-# Main route — handles both webhook verification (GET) and messages (POST)
-# ---------------------------------------------------------------------------
+
 @whatsapp_router.api_route("/whatsapp_response", methods=["GET", "POST"])
 async def whatsapp_handler(request: Request) -> Response:
-    """Entry point for all WhatsApp Cloud API events."""
+    """Handles incoming messages and status updates from the WhatsApp Cloud API."""
 
-    # --- Webhook verification handshake ---
     if request.method == "GET":
-        return _verify_webhook(request)
+        params = request.query_params
+        if params.get("hub.verify_token") == os.getenv("WHATSAPP_VERIFY_TOKEN"):
+            return Response(content=params.get("hub.challenge"), status_code=200)
+        return Response(content="Verification token mismatch", status_code=403)
 
-    # --- Incoming event ---
     try:
         data = await request.json()
         change_value = data["entry"][0]["changes"][0]["value"]
-
         if "messages" in change_value:
-            return await _handle_message(change_value["messages"][0])
+            message = change_value["messages"][0]
+            from_number = message["from"]
+            session_id = from_number
 
-        if "statuses" in change_value:
-            # Delivery / read receipts — nothing to do
+            # Get user message and handle different message types
+            content = ""
+            if message["type"] == "audio":
+                content = await process_audio_message(message)
+            elif message["type"] == "image":
+                # Get image caption if any
+                content = message.get("image", {}).get("caption", "")
+                # Download and analyze image
+                image_bytes = await download_media(message["image"]["id"])
+                try:
+                    description = await image_to_text.analyze_image(
+                        image_bytes
+                    )
+                    content+=f"\n\nImage Description: {description}"
+                except Exception as e:
+                    logger.warning(f"Failed to analyze image: {e}")
+            else:
+                content = message["text"]["body"]
+
+            # Process message through the graph agent
+            async with AsyncSqliteSaver.from_conn_string(settings.SHORT_TERM_MEMORY_DB_PATH) as short_term_memory:
+                graph = create_workflow_graph().compile(checkpointer=short_term_memory)
+                await graph.ainvoke(
+                    {"messages": [HumanMessage(content=content)]},
+                    {"configurable": {"thread_id": session_id}},
+                )
+
+                # Get the workflow type and response from the state
+                output_state = await graph.aget_state(config={"configurable": {"thread_id": session_id}})
+
+            workflow = output_state.values.get("workflow", "conversation")
+            response_message = output_state.values["messages"][-1].content
+
+            # Handle different response types based on workflow
+            if workflow == "audio":
+                audio_buffer = output_state.values["audio_buffer"]
+                success = await send_response(from_number, response_message, "audio", audio_buffer)
+            elif workflow == "image":
+                image_path = output_state.values["image_path"]
+                with open(image_path, "rb") as f:
+                    image_data = f.read()
+                success = await send_response(from_number, response_message, "image", image_data)
+            else:
+                success = await send_response(from_number, response_message, "text")
+
+            if not success:
+                return Response(content="Failed to send message", status_code=500)
+
+            return Response(content="Message processed", status_code=200)
+
+        elif "statuses" in change_value:
             return Response(content="Status update received", status_code=200)
 
-        return Response(content="Unknown event type", status_code=400)
+        else:
+            return Response(content="Unknown event type", status_code=400)
 
-    except Exception:
-        logger.exception("Unhandled error in whatsapp_handler")
+    except Exception as e:
+        logger.error(f"Error processing message: {e}", exc_info=True)
         return Response(content="Internal server error", status_code=500)
 
 
-# ---------------------------------------------------------------------------
-# Webhook verification
-# ---------------------------------------------------------------------------
-def _verify_webhook(request: Request) -> Response:
-    """Respond to Meta's hub challenge during webhook registration."""
-    params = request.query_params
-    if params.get("hub.verify_token") == WHATSAPP_VERIFY_TOKEN:
-        return Response(content=params.get("hub.challenge"), status_code=200)
-    return Response(content="Verification token mismatch", status_code=403)
-
-
-# ---------------------------------------------------------------------------
-# Message handling
-# ---------------------------------------------------------------------------
-async def _handle_message(message: Dict) -> Response:
-    """Parse an incoming message, call the LLM, and reply."""
-    from_number = message["from"]
-    msg_type = message["type"]
-
-    # Build the text content we'll send to the LLM
-    content = await _extract_content(message, msg_type)
-
-    # Call the LLM directly — no graph, no agent overhead
-    reply = await _call_llm(content)
-
-    # Send the reply back to the user
-    success = await send_text_message(from_number, reply)
-    if not success:
-        return Response(content="Failed to send message", status_code=500)
-
-    return Response(content="Message processed", status_code=200)
-
-
-async def _extract_content(message: Dict, msg_type: str) -> str:
-    """Turn any supported message type into a plain-text string for the LLM."""
-
-    if msg_type == "text":
-        return message["text"]["body"]
-
-    if msg_type == "audio":
-        return await _transcribe_audio(message["audio"]["id"])
-
-    if msg_type == "image":
-        caption = message.get("image", {}).get("caption", "")
-        image_bytes = await _download_media(message["image"]["id"])
-        description = await image_to_text.analyze_image(
-            image_bytes,
-            "Describe what you see in this image in the context of our conversation.",
-        )
-        # Combine caption (if any) with the vision model's description
-        return f"{caption}\n[Image: {description}]".strip()
-
-    # Unsupported type — let the LLM handle it gracefully
-    return f"[Unsupported message type: {msg_type}]"
-
-
-async def _call_llm(content: str) -> str:
-    """Send content to the LLM and return its text reply."""
-    response = await llm.ainvoke([HumanMessage(content=content)])
-    return response.content
-
-
-# ---------------------------------------------------------------------------
-# Media helpers
-# ---------------------------------------------------------------------------
-async def _download_media(media_id: str) -> bytes:
-    """Fetch raw bytes for any WhatsApp media item by its ID."""
+async def download_media(media_id: str) -> bytes:
+    """Download media from WhatsApp."""
+    media_metadata_url = f"https://graph.facebook.com/v21.0/{media_id}"
     headers = {"Authorization": f"Bearer {WHATSAPP_TOKEN}"}
 
     async with httpx.AsyncClient() as client:
-        # Step 1: resolve the media ID to a download URL
-        meta = await client.get(f"{GRAPH_API_BASE}/{media_id}", headers=headers)
-        meta.raise_for_status()
-        download_url = meta.json()["url"]
+        metadata_response = await client.get(media_metadata_url, headers=headers)
+        metadata_response.raise_for_status()
+        metadata = metadata_response.json()
+        download_url = metadata.get("url")
 
-        # Step 2: download the actual file
-        media = await client.get(download_url, headers=headers)
-        media.raise_for_status()
-        return media.content
-
-
-async def _transcribe_audio(audio_id: str) -> str:
-    """Download a WhatsApp audio message and return its transcript."""
-    audio_bytes = await _download_media(audio_id)
-    return await speech_to_text.transcribe(audio_bytes)
+        media_response = await client.get(download_url, headers=headers)
+        media_response.raise_for_status()
+        return media_response.content
 
 
-# ---------------------------------------------------------------------------
-# Sending messages
-# ---------------------------------------------------------------------------
-async def send_text_message(to: str, body: str) -> bool:
-    """Send a plain-text WhatsApp message. Returns True on success."""
-    payload = {
-        "messaging_product": "whatsapp",
-        "to": to,
-        "type": "text",
-        "text": {"body": body},
-    }
-    return await _post_to_whatsapp("messages", payload)
+async def process_audio_message(message: Dict) -> str:
+    """Download and transcribe audio message."""
+    audio_id = message["audio"]["id"]
+    media_metadata_url = f"https://graph.facebook.com/v21.0/{audio_id}"
+    headers = {"Authorization": f"Bearer {WHATSAPP_TOKEN}"}
+
+    async with httpx.AsyncClient() as client:
+        metadata_response = await client.get(media_metadata_url, headers=headers)
+        metadata_response.raise_for_status()
+        metadata = metadata_response.json()
+        download_url = metadata.get("url")
+
+    # Download the audio file
+    async with httpx.AsyncClient() as client:
+        audio_response = await client.get(download_url, headers=headers)
+        audio_response.raise_for_status()
+
+    # Prepare for transcription
+    audio_buffer = BytesIO(audio_response.content)
+    audio_buffer.seek(0)
+    audio_data = audio_buffer.read()
+
+    return await speech_to_text.transcribe(audio_data)
 
 
-async def _post_to_whatsapp(endpoint: str, payload: Dict) -> bool:
-    """POST JSON to the WhatsApp Graph API. Returns True if HTTP 200."""
+async def send_response(
+    from_number: str,
+    response_text: str,
+    message_type: str = "text",
+    media_content: bytes = None,
+) -> bool:
+    """Send response to user via WhatsApp API."""
     headers = {
         "Authorization": f"Bearer {WHATSAPP_TOKEN}",
         "Content-Type": "application/json",
     }
-    url = f"{GRAPH_API_BASE}/{WHATSAPP_PHONE_NUMBER_ID}/{endpoint}"
+
+    if message_type in ["audio", "image"]:
+        try:
+            mime_type = "audio/mpeg" if message_type == "audio" else "image/png"
+            media_buffer = BytesIO(media_content)
+            media_id = await upload_media(media_buffer, mime_type)
+            json_data = {
+                "messaging_product": "whatsapp",
+                "to": from_number,
+                "type": message_type,
+                message_type: {"id": media_id},
+            }
+
+            # Add caption for images
+            if message_type == "image":
+                json_data["image"]["caption"] = response_text
+        except Exception as e:
+            logger.error(f"Media upload failed, falling back to text: {e}")
+            message_type = "text"
+
+    if message_type == "text":
+        json_data = {
+            "messaging_product": "whatsapp",
+            "to": from_number,
+            "type": "text",
+            "text": {"body": response_text},
+        }
+
+    print(headers)
+    print(json_data)
 
     async with httpx.AsyncClient() as client:
-        response = await client.post(url, headers=headers, json=payload)
-
-    if response.status_code != 200:
-        logger.error("WhatsApp API error %s: %s", response.status_code, response.text)
+        response = await client.post(
+            f"https://graph.facebook.com/v21.0/{WHATSAPP_PHONE_NUMBER_ID}/messages",
+            headers=headers,
+            json=json_data,
+        )
 
     return response.status_code == 200
+
+
+async def upload_media(media_content: BytesIO, mime_type: str) -> str:
+    """Upload media to WhatsApp servers."""
+    headers = {"Authorization": f"Bearer {WHATSAPP_TOKEN}"}
+    files = {"file": ("response.mp3", media_content, mime_type)}
+    data = {"messaging_product": "whatsapp", "type": mime_type}
+
+    async with httpx.AsyncClient() as client:
+        response = await client.post(
+            f"https://graph.facebook.com/v21.0/{WHATSAPP_PHONE_NUMBER_ID}/media",
+            headers=headers,
+            files=files,
+            data=data,
+        )
+        result = response.json()
+
+    if "id" not in result:
+        raise Exception("Failed to upload media")
+    return result["id"]

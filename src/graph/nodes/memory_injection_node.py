@@ -20,6 +20,6 @@ async def memory_injection_node(state: AgentState) -> AgentState:
 
     # Format the retrieved memories for injection into the character card
     formatted_memory_context = memory_manager.format_memories_for_prompt(relevant_memories)
-    # print(f"Formatted Memory Context:\n{formatted_memory_context}")
+    print(f"Formatted Memory Context:\n{formatted_memory_context}")
 
     return {"memory_context": formatted_memory_context}

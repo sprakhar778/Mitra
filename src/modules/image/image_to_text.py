@@ -20,21 +20,25 @@ class ImageToText:
             return base64.b64encode(f.read()).decode("utf-8")
         
 
-    async def analyze_image(self, image:Union[str, bytes]) -> str:
+    async def analyze_image(self, image:Union[str, bytes],user_request: str="") -> str:
         try:
+            if user_request:
+                text_content = user_request
+            else:
+                text_content = "Please describe what you see in this image in detail."
             if isinstance(image, bytes):
                 
                 base64_image = base64.b64encode(image).decode('utf-8')
                 message = HumanMessage(
                     content=[
-                        {"type": "text", "text": "Please describe what you see in this image in detail."},
+                        {"type": "text", "text": text_content},
                         {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"}},
                     ]
                 )
             elif isinstance(image, str):
                 message = HumanMessage(
                     content=[
-                        {"type": "text", "text": "Please describe what you see in this image in detail."},
+                        {"type": "text", "text": text_content},
                         {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{self._encode_image(image)}"}},
                     ]
                 )

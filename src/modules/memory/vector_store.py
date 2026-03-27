@@ -75,7 +75,7 @@ class VectorStore:
         """
         results = self.search_memories(text, k=1)
         print(f"Similarity search results: {results[0].score if results else 'No results'}")
-        if results and results[0].score >= self.SIMILARITY_THRESHOLD:
+        if results and results[0].score <= self.SIMILARITY_THRESHOLD:
             return results[0]
         return None
 
