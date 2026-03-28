@@ -55,23 +55,25 @@ async def whatsapp_handler(request: Request) -> Response:
                 # Get image caption if any
                 content = message.get("image", {}).get("caption", "")
                 if content:
-                    content+=f"\n\n User Request or Caption for image: {content}"
+                    content+=f"\n\n User Says: {content}"
                 
                 
-                content+=f"\n\nImage Description by AI for your understanding: {description} \n\n Now anlyze and answer user's query based on this image description and user caption if any."
-
+          
                 # Download and analyze image
                 image_bytes = await download_media(message["image"]["id"])
                 try:
                     description = await image_to_text.analyze_image(
                         image_bytes
                     )
-                    content+=f"\n\nImage Description: {description}"
+                    content+=f"\n\nImage Description: {description} \n\n You have given what user says about image and image description now analyze and answer"
                 except Exception as e:
                     logger.warning(f"Failed to analyze image: {e}")
+            elif message["type"]=="text":
+                    content = message.get("text", {}).get("body", "")
             else:
-                content = message["text"]["body"]
-
+                print("Unsupported message type")
+                return Response(content="Ignored unsupported message", status_code=200)
+            
             # Process message through the graph agent
             async with AsyncSqliteSaver.from_conn_string(settings.SHORT_TERM_MEMORY_DB_PATH) as short_term_memory:
                 graph = create_workflow_graph().compile(checkpointer=short_term_memory)

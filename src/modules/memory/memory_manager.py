@@ -11,7 +11,7 @@ from typing import List
 class MemoryManager:
     def __init__(self):
         self.vector_store = get_vector_store()
-        self.SIMILARITY_THRESHOLD = 0.4
+        self.SIMILARITY_THRESHOLD = 0.5
 
     
     async def _analyze_memory(self, text: str) -> dict:

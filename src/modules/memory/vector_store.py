@@ -36,7 +36,7 @@ class VectorStore:
         self.client = self._get_qdrant_client()
 
         self.model = OpenAIEmbeddings(model="text-embedding-3-large",api_key=settings.OPENAI_API_KEY)  # Use the same model for embeddings
-        self.SIMILARITY_THRESHOLD = 0.7
+        self.SIMILARITY_THRESHOLD = 0.5
         self.COLLECTION_NAME = collection_name
 
     @lru_cache(maxsize=1)
